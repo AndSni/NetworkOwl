@@ -46,6 +46,7 @@ class MonitorService : LifecycleService() {
                     is Status.Error -> st.message
                     Status.Connecting -> "Connecting to router…"
                     Status.NeedsSetup -> "Open NetWatch to finish setup"
+                    is Status.Restarting -> "Router is restarting…"
                     else -> s.frame?.let { f ->
                         val ping = f.probe?.avgMs?.let { " · ${it.toInt()} ms" } ?: " · no ping reply"
                         val sinr = f.lte.sinr?.let { " · SINR $it dB" } ?: ""

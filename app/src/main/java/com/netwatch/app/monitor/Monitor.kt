@@ -31,6 +31,8 @@ sealed interface Status {
     data object Connecting : Status
     data object Live : Status
     data class Error(val message: String) : Status
+    /** A restart was requested at [sinceMs]; connection failures are expected until it's back. */
+    data class Restarting(val sinceMs: Long) : Status
 }
 
 data class HistoryState(
@@ -66,6 +68,7 @@ class Monitor(private val context: Context, val prefs: Prefs) {
     private var sshFor: ConnKey? = null
     private var preparedConnection: RouterSsh? = null
     private var clientDatabase: Map<String, Pair<String?, String?>> = emptyMap()
+    @Volatile private var restartAt = 0L
 
     private val _state = MutableStateFlow(MonitorState())
     val state: StateFlow<MonitorState> = _state.asStateFlow()
@@ -118,18 +121,27 @@ class Monitor(private val context: Context, val prefs: Prefs) {
                 delay(2_000)
                 continue
             }
+            val restarting = restartAt != 0L && System.currentTimeMillis() - restartAt < RESTART_WINDOW_MS
             try {
-                if (_state.value.status !is Status.Live) _state.update { it.copy(status = Status.Connecting) }
+                val st = _state.value.status
+                if (st !is Status.Live && !restarting) _state.update { it.copy(status = Status.Connecting) }
                 pollOnce(settings)
                 failures = 0
+                // The router answers for a moment after the restart command; only a later answer means it's back.
+                if (restarting && System.currentTimeMillis() - restartAt > 20_000) restartAt = 0
                 delay(settings.pollSeconds * 1000L)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                failures++
                 sshLock.withLock { closeSsh() }
-                _state.update { it.copy(status = Status.Error(describe(e))) }
-                delay(minOf(30_000L, 3_000L * failures))
+                if (restarting) {
+                    _state.update { it.copy(status = Status.Restarting(restartAt)) }
+                    delay(5_000)
+                } else {
+                    failures++
+                    _state.update { it.copy(status = Status.Error(describe(e))) }
+                    delay(minOf(30_000L, 3_000L * failures))
+                }
             }
         }
     }
@@ -270,6 +282,18 @@ class Monitor(private val context: Context, val prefs: Prefs) {
         engine.reset()
     }
 
+    /**
+     * Restarts the router the same way its web page does. With [keepHistory] the recorder's
+     * history is saved to the router's flash first and put back after the restart.
+     */
+    suspend fun restartRouter(keepHistory: Boolean) {
+        withRouter(prefs.current()) { it.exec("sh $SCRIPT reboot" + if (keepHistory) " keep" else "") }
+        restartAt = System.currentTimeMillis()
+        sshLock.withLock { closeSsh() }
+        engine.reset()
+        _state.update { it.copy(status = Status.Restarting(restartAt), frame = null, history = HistoryState()) }
+    }
+
     suspend fun markKnown(macs: Collection<String>) {
         prefs.markKnown(macs)
         val known = prefs.current().knownDevices
@@ -281,6 +305,8 @@ class Monitor(private val context: Context, val prefs: Prefs) {
     companion object {
         private const val DIR = "/tmp/netwatch"
         private const val SCRIPT = "$DIR/nw.sh"
+        /** Router boot plus LTE attach; failures after this are real errors again. */
+        private const val RESTART_WINDOW_MS = 6 * 60_000L
 
         fun describe(e: Throwable): String {
             val chain = generateSequence(e) { it.cause }.toList()

@@ -50,7 +50,7 @@ import kotlinx.coroutines.withContext
 import java.util.Base64
 
 @Composable
-fun SetupScreen(monitor: Monitor, settings: Settings) {
+fun SetupScreen(monitor: Monitor, settings: Settings, onRestartRouter: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -179,6 +179,18 @@ fun SetupScreen(monitor: Monitor, settings: Settings) {
                         recorder = runCatching { monitor.recorderStatus() }.getOrNull()
                     }
                 }) { Text("Stop") }
+            }
+        }
+
+        Text("Router", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        NwCard {
+            Text(
+                "A clean restart, the same as the router's own Reboot button. Everyone is offline for " +
+                    "about 2–3 minutes while the LTE modem reconnects.",
+                color = Palette.muted, fontSize = 12.sp,
+            )
+            OutlinedButton(enabled = settings.configured, onClick = onRestartRouter, modifier = Modifier.padding(top = 6.dp)) {
+                Text("Restart router")
             }
         }
 

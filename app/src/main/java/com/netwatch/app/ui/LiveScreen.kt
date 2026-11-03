@@ -54,6 +54,7 @@ fun LiveScreen(
     onOpenDevice: (DeviceRate) -> Unit,
     onMarkAllKnown: () -> Unit,
     onOpenSetup: () -> Unit,
+    onRestartRouter: () -> Unit,
 ) {
     val frame = state.frame
     var showOffline by remember { mutableStateOf(false) }
@@ -66,7 +67,7 @@ fun LiveScreen(
         item { StatusLine(state, onOpenSetup) }
 
         if (frame != null) {
-            item { LinkCard(frame, timeline) }
+            item { LinkCard(frame, timeline, onRestartRouter) }
             item { SessionCard(sessionRunning, onToggleSession, frame) }
 
             val newOnes = frame.devices.filter { it.device.key in state.newDevices }
@@ -115,6 +116,7 @@ private fun StatusLine(state: MonitorState, onOpenSetup: () -> Unit) {
         is Status.Error -> Banner(s.message, "Setup", onOpenSetup, color = Palette.bad)
         Status.Connecting -> Text("Connecting to router…", color = Palette.muted, fontSize = 13.sp)
         Status.Idle -> Text("Paused", color = Palette.muted, fontSize = 13.sp)
+        is Status.Restarting -> RestartingBanner(s.sinceMs)
         Status.Live -> state.frame?.let {
             Text("Live · updated ${Format.time(it.epochMs)}", color = Palette.muted, fontSize = 13.sp)
         } ?: Text("Measuring…", color = Palette.muted, fontSize = 13.sp)
@@ -122,7 +124,24 @@ private fun StatusLine(state: MonitorState, onOpenSetup: () -> Unit) {
 }
 
 @Composable
-private fun LinkCard(f: LiveFrame, timeline: List<TimelinePoint>) {
+private fun RestartingBanner(sinceMs: Long) {
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    androidx.compose.runtime.LaunchedEffect(sinceMs) {
+        while (true) {
+            now = System.currentTimeMillis()
+            kotlinx.coroutines.delay(1_000)
+        }
+    }
+    val secs = ((now - sinceMs) / 1000).coerceAtLeast(0)
+    Banner(
+        "Router is restarting (${secs / 60}:${"%02d".format(secs % 60)}). NetWatch reconnects when it's back, " +
+            "usually within 2–3 minutes.",
+        action = null, onAction = {}, color = Palette.up,
+    )
+}
+
+@Composable
+private fun LinkCard(f: LiveFrame, timeline: List<TimelinePoint>, onRestartRouter: () -> Unit) {
     NwCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -163,6 +182,9 @@ private fun LinkCard(f: LiveFrame, timeline: List<TimelinePoint>) {
                 height = 80.dp,
                 marks = timeline.map { (it.internetLoss ?: 0) > 0 || (it.internetMs ?: 0.0) > 150 },
             )
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onRestartRouter) { Text("Restart router", color = Palette.muted, fontSize = 13.sp) }
         }
     }
 }

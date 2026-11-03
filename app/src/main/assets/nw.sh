@@ -10,16 +10,19 @@
 #   nw.sh status           recorder state and history size
 #   nw.sh history [since]  print recorded samples newer than epoch <since>
 #   nw.sh remove           stop the recorder and delete all NetWatch rules
+#   nw.sh reboot [keep]    restart the router cleanly; "keep" first saves the history to /jffs
+#                          (gzipped), and the next start/history call puts it back in RAM
 #
 # Counting rules sit in their own chain in the mangle table, so they never touch
 # the filter table (parental controls, blocked devices). Every rule ends in RETURN
 # and only counts; no packet is ever changed or dropped.
 
-NW_VERSION=5
+NW_VERSION=6
 DIR=/tmp/netwatch
 CHAIN=NETWATCH
 LAN=br0
 HIST=$DIR/history.log
+SAVED=/jffs/netwatch_history.gz
 PIDF=$DIR/recorder.pid
 MAX_LINES=5760          # 48 h at 30 s
 PING_TARGET=1.1.1.1
@@ -151,6 +154,16 @@ record_once() {
 	fi
 }
 
+# History saved before a reboot goes back in front of anything recorded since, then leaves flash.
+restore_saved() {
+	[ -f $SAVED ] || return
+	if gunzip -c $SAVED > $HIST.restore 2>/dev/null; then
+		[ -f $HIST ] && cat $HIST >> $HIST.restore
+		mv $HIST.restore $HIST
+	fi
+	rm -f $SAVED $HIST.restore
+}
+
 recorder() {
 	interval=${1:-30}
 	echo $$ > $PIDF
@@ -166,6 +179,7 @@ case "$1" in
 	snapshot) snapshot "$2" ;;
 	clients) clients ;;
 	start)
+		restore_saved
 		if [ -f $PIDF ] && kill -0 "$(cat $PIDF)" 2>/dev/null; then
 			echo "running $(cat $PIDF)"
 		else
@@ -186,14 +200,25 @@ case "$1" in
 		if [ -f $HIST ]; then lines=$(wc -l < $HIST); first=$(head -n 1 $HIST | cut -d'|' -f1); fi
 		echo "S $r $lines $first"
 		;;
-	history) [ -f $HIST ] && awk -F'|' -v s="${2:-0}" '$1 > s' $HIST ;;
+	history)
+		restore_saved
+		[ -f $HIST ] && awk -F'|' -v s="${2:-0}" '$1 > s' $HIST
+		;;
+	reboot)
+		[ -f $PIDF ] && kill "$(cat $PIDF)" 2>/dev/null
+		rm -f $PIDF
+		if [ "$2" = keep ] && [ -s $HIST ]; then gzip -c $HIST > $SAVED; fi
+		# Detached and delayed, so this SSH command returns before the router goes down.
+		nohup sh -c 'sleep 2; service reboot || reboot' > /dev/null 2>&1 &
+		echo rebooting
+		;;
 	remove)
 		[ -f $PIDF ] && kill "$(cat $PIDF)" 2>/dev/null
-		rm -f $PIDF $HIST
+		rm -f $PIDF $HIST $SAVED
 		while iptables -t mangle -D FORWARD -j $CHAIN 2>/dev/null; do :; done
 		iptables -t mangle -F $CHAIN 2>/dev/null
 		iptables -t mangle -X $CHAIN 2>/dev/null
 		echo removed
 		;;
-	*) echo "usage: nw.sh version|snapshot|clients|start [secs]|stop|status|history [since]|remove" >&2; exit 1 ;;
+	*) echo "usage: nw.sh version|snapshot|clients|start [secs]|stop|status|history [since]|remove|reboot [keep]" >&2; exit 1 ;;
 esac

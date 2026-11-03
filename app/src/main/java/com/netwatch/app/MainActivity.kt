@@ -47,6 +47,7 @@ import com.netwatch.app.ui.HistoryScreen
 import com.netwatch.app.ui.LiveScreen
 import com.netwatch.app.ui.NetWatchTheme
 import com.netwatch.app.ui.Palette
+import com.netwatch.app.ui.RestartRouterDialog
 import com.netwatch.app.ui.SetupScreen
 import kotlinx.coroutines.launch
 
@@ -71,6 +72,7 @@ private fun App(monitor: com.netwatch.app.monitor.Monitor) {
     val sessionRunning by MonitorService.isRunning.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(Tab.LIVE) }
     var openDevice by rememberSaveable { mutableStateOf<String?>(null) }
+    var askRestart by rememberSaveable { mutableStateOf(false) }
 
     // Poll while the app is on screen; the monitoring service keeps it going in the background.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -163,6 +165,7 @@ private fun App(monitor: com.netwatch.app.monitor.Monitor) {
                         if (macs != null) scope.launch { monitor.markKnown(macs) }
                     },
                     onOpenSetup = { tab = Tab.SETUP },
+                    onRestartRouter = { askRestart = true },
                 )
                 tab == Tab.HISTORY -> HistoryScreen(
                     history = state.history,
@@ -170,8 +173,13 @@ private fun App(monitor: com.netwatch.app.monitor.Monitor) {
                     recorderRunning = state.frame?.recorderRunning,
                     onLoad = { monitor.loadHistory() },
                 )
-                else -> SetupScreen(monitor, settings)
+                else -> SetupScreen(monitor, settings, onRestartRouter = { askRestart = true })
             }
         }
+    }
+
+    if (askRestart) RestartRouterDialog(monitor) {
+        askRestart = false
+        tab = Tab.LIVE
     }
 }
