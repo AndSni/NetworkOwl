@@ -1,13 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Signal bars over a router line: 108dp adaptive canvas, artwork inside the 66dp safe zone. -->
+<!-- An owl on a branch keeping watch, Wi-Fi arcs for chest feathers. Trailkeeper style:
+     one soft stroke colour, cream details, cut-outs in the background colour. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:fillColor="#3DDC97" android:pathData="M34,62h8v10h-8z" />
-    <path android:fillColor="#3DDC97" android:pathData="M46,54h8v18h-8z" />
-    <path android:fillColor="#3DDC97" android:pathData="M58,46h8v26h-8z" />
-    <path android:fillColor="#58A6FF" android:pathData="M70,38h8v34h-8z" />
-    <path android:fillColor="#C9D1D9" android:pathData="M30,76h50v4h-50z" />
+    <group
+        android:pivotX="54"
+        android:pivotY="56"
+        android:scaleX="0.84"
+        android:scaleY="0.84">
+        <!-- Body with ear tufts -->
+        <path
+            android:strokeColor="#8CC7B4"
+            android:strokeWidth="4.6"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000"
+            android:pathData="M40.5,43 L34.5,30 L47,36 Q54,34 61,36 L73.5,30 L67.5,43 C72.5,52 72.5,64 66.5,72 C62,77.5 46,77.5 41.5,72 C35.5,64 35.5,52 40.5,43 Z" />
+        <!-- Brow -->
+        <path
+            android:strokeColor="#8CC7B4"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000"
+            android:pathData="M40,42.5 Q47,40 54,47 Q61,40 68,42.5" />
+        <!-- Eyes -->
+        <path
+            android:fillColor="#EAF0E4"
+            android:pathData="M46.8,51 m-6.8,0 a6.8,6.8 0 1,0 13.6,0 a6.8,6.8 0 1,0 -13.6,0 Z M61.2,51 m-6.8,0 a6.8,6.8 0 1,0 13.6,0 a6.8,6.8 0 1,0 -13.6,0 Z" />
+        <path
+            android:fillColor="#18222F"
+            android:pathData="M47.6,51.8 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z M60.4,51.8 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
+        <!-- Beak -->
+        <path
+            android:fillColor="#8CC7B4"
+            android:pathData="M51.6,58.5 L56.4,58.5 L54,63.5 Z" />
+        <!-- Chest: Wi-Fi arcs -->
+        <path
+            android:fillColor="#EAF0E4"
+            android:pathData="M54,71.5 m-1.8,0 a1.8,1.8 0 1,0 3.6,0 a1.8,1.8 0 1,0 -3.6,0 Z" />
+        <path
+            android:strokeColor="#EAF0E4"
+            android:strokeWidth="2.1"
+            android:strokeLineCap="round"
+            android:fillColor="#00000000"
+            android:pathData="M50.6,68.1 A4.8,4.8 0 0,1 57.4,68.1 M47.9,65.4 A8.6,8.6 0 0,1 60.1,65.4" />
+        <!-- Branch and feet -->
+        <path
+            android:strokeColor="#8CC7B4"
+            android:strokeWidth="3.6"
+            android:strokeLineCap="round"
+            android:fillColor="#00000000"
+            android:pathData="M33,81 L75,81" />
+        <path
+            android:strokeColor="#EAF0E4"
+            android:strokeWidth="1.8"
+            android:strokeLineCap="round"
+            android:fillColor="#00000000"
+            android:pathData="M48,76.5 L48,80 M51,76.5 L51,80 M57,76.5 L57,80 M60,76.5 L60,80" />
+    </group>
 </vector>

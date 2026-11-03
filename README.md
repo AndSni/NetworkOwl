@@ -1,4 +1,4 @@
-# NetWatch
+# NetworkOwl
 
 Android app that shows what is happening on a home network behind an ASUS router on **stock
 firmware**: which devices are connected, what each one is downloading and uploading right now,
@@ -10,9 +10,9 @@ ASUSWRT routers with SSH should mostly work, but only this one has been tested.
 ## How it works
 
 The app logs in to the router over SSH (LAN only) and uploads a small shell script,
-[`nw.sh`](app/src/main/assets/nw.sh), to `/tmp/netwatch` (RAM). The script:
+[`owl.sh`](app/src/main/assets/owl.sh), to `/tmp/networkowl` (RAM). The script:
 
-- adds **counting-only** firewall rules: one chain, `NETWATCH`, in the `mangle` table, two
+- adds **counting-only** firewall rules: one chain, `NETWORKOWL`, in the `mangle` table, two
   `RETURN` rules per LAN device. They never change or drop a packet, and they stay out of
   the `filter` table where parental controls and blocked devices live;
 - reads device names from the router's own client list (`/tmp/nmp_cache.js`,
@@ -21,8 +21,10 @@ The app logs in to the router over SSH (LAN only) and uploads a small shell scri
 - optionally runs a **recorder** in the background: one sample every 30 s (traffic per device,
   LTE signal, ping to 1.1.1.1), kept for 48 h.
 
-Nothing is written to the router's flash or settings. A reboot removes the script, the
-rules and the history. **Setup → Remove from router** does the same without a reboot.
+Nothing is written to the router's settings. A reboot removes the script, the rules and the
+history. **Setup → Remove from router** does the same without a reboot. The one flash write
+is optional: **Restart router** with *Keep recorder history* saves the history gzipped to
+`/jffs` for the restart and moves it back to RAM afterwards.
 
 Accuracy check against a 30 MB download and 5 MB upload: the WAN total matched the device
 counters to 99.99 %. The router has no hardware NAT on the USB modem path, so every packet
@@ -32,9 +34,9 @@ goes through the counters.
 
 1. Router web UI → **Administration → System**: Enable SSH **LAN only**, port 22,
    Allow Password Login **No**.
-2. Open NetWatch → **Setup**, tap **Copy key**, and paste the key as a new line in the
+2. Open NetworkOwl → **Setup**, tap **Copy key**, and paste the key as a new line in the
    router's **Authorized Keys** box. Click **Apply**.
-3. In NetWatch, enter the router address and admin user name, then tap **Save & test**.
+3. In NetworkOwl, enter the router address and admin user name, then tap **Save & test**.
 
 The phone's key is an ECDSA P-256 key in the Android Keystore. It can sign but can't be
 exported. The router's identity is pinned on first connect, and the app refuses to connect
@@ -49,7 +51,10 @@ if it changes.
 - **History**: the router recorder's data for the last 1/6/24/48 h. Download/upload, ping
   and SINR charts, with slow periods (ping > 150 ms or packet loss) shaded red. Tap a
   chart to see which devices were busy at that moment.
-- **Setup**: connection, key, update rate, recorder control, clean-up.
+- **Setup**: connection, key, update rate, recorder control, router restart, clean-up.
+
+The router restart (also on the Live screen) runs the router's own `service reboot`. The
+app shows a restarting banner and reconnects by itself once the router and LTE are back.
 
 ## Notes
 
@@ -58,6 +63,8 @@ if it changes.
   signal, so the app shows them as "via extender".
 - `/proc/net/dev` counters are 32-bit on this router and wrap at 4 GiB; the app handles that.
 - LAN-side traffic (device to device) isn't counted, only traffic to and from the internet.
+- The app was called NetWatch before 0.1.0. `owl.sh` takes over a NetWatch install on the
+  router (recorder history kept, old rules and recorder removed).
 
 ## Build and test
 
@@ -66,8 +73,11 @@ export JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-21-amd64-linux.2
 ./gradlew :app:assembleDebug
 ./gradlew :app:testDebugUnitTest
 
+# Signed release: needs keystore.properties + networkowl-release.jks (not in git)
+./gradlew :app:assembleRelease
+
 # Opt-in integration tests: local sshd + the real router
-NETWATCH_IT=1 NETWATCH_ROUTER=192.168.50.1 NETWATCH_ROUTER_USER=<user> \
-NETWATCH_ROUTER_KEY=$HOME/.ssh/asus_router_ed25519 \
+NETWORKOWL_IT=1 NETWORKOWL_ROUTER=192.168.50.1 NETWORKOWL_ROUTER_USER=<user> \
+NETWORKOWL_ROUTER_KEY=$HOME/.ssh/asus_router_ed25519 \
 ./gradlew :app:testDebugUnitTest --tests '*SshIntegrationTest*' --rerun
 ```

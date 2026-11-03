@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NetWatch"
+rootProject.name = "NetworkOwl"
 include(":app")

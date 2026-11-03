@@ -1,19 +1,40 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// Release signing is driven by a keystore.properties file that is NOT in git.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
 android {
-    namespace = "com.netwatch.app"
+    namespace = "com.networkowl.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.netwatch.app"
+        applicationId = "com.networkowl.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            if (keystoreProperties.isNotEmpty()) {
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            }
+        }
     }
 
     buildTypes {
@@ -21,7 +42,15 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            vcsInfo.include = false
+            // Without keystore.properties the release APK is left unsigned.
+            signingConfig = if (keystoreProperties.isNotEmpty()) signingConfigs.getByName("release") else null
         }
+    }
+
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 
     compileOptions {
